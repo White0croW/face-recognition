@@ -1,4 +1,4 @@
-from ..main import handle_upload, handle_search
+from main import handle_upload, handle_search
 from PIL import Image
 import io
 import numpy as np
