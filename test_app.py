@@ -1,11 +1,9 @@
-import pytest
 from image_utils import handle_upload, handle_search
 from PIL import Image
 import io
 import numpy as np
 
 
-@pytest.fixture
 def test_handle_upload():
     # Тест загрузки изображения [[4]]
     img = Image.new("RGB", (100, 100))
