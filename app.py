@@ -1,29 +1,6 @@
 import gradio as gr
 from database import init_db, save_to_db
-from image_utils import process_single_image, process_zip_archive, search_images
-
-# Инициализация БД
-conn = init_db()
-
-
-def handle_upload(file, zip_file):
-    """Обработка загрузки файлов"""
-    if file:
-        filename, save_path = process_single_image(file)
-        save_to_db(conn, filename, save_path)
-        return f"Сохранено: {filename}"
-    elif zip_file:
-        for filename, save_path in process_zip_archive(zip_file):
-            save_to_db(conn, filename, save_path)
-        return "Архив обработан"
-    return "Файл не выбран"
-
-
-def handle_search(query):
-    """Обработка поиска"""
-    results = search_images(query)
-    return results if results else "Ничего не найдено"
-
+from image_utils import handle_search, handle_upload, process_single_image, process_zip_archive, search_images
 
 # Gradio-интерфейс [[6]]
 with gr.Blocks() as demo:

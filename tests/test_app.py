@@ -1,5 +1,5 @@
 import pytest
-from app import handle_upload, handle_search
+from image_utils import handle_upload, handle_search
 from PIL import Image
 import io
 import numpy as np
