@@ -4,6 +4,21 @@ from PIL import Image
 import sqlite3
 
 
+from face_model import FaceRecognizer  # Импорт модели
+
+
+def process_recognition(image_path):
+    """Распознавание лиц на изображении [[6]]"""
+    recognizer = FaceRecognizer()
+    image = Image.open(image_path)
+    faces = recognizer.detect_faces(image)
+    results = []
+    for face in faces:
+        embedding = recognizer.recognize(face)
+        results.append({"coordinates": face, "embedding": embedding})
+    return results
+
+
 def process_single_image(file):
     """Сохранение отдельного изображения [[1]][[6]]"""
     filename = os.path.basename(file.name)

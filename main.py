@@ -1,6 +1,11 @@
 import gradio as gr
 from database import init_db, save_to_db
-from image_utils import process_single_image, process_zip_archive, search_images
+from image_utils import (
+    process_recognition,
+    process_single_image,
+    process_zip_archive,
+    search_images,
+)
 
 # Инициализация БД
 conn = init_db()
@@ -25,7 +30,7 @@ def handle_search(query):
     return results if results else "Ничего не найдено"
 
 
-# Gradio-интерфейс [[6]]
+# Gradio-интерфейс
 with gr.Blocks() as demo:
     gr.Markdown("# Менеджер изображений")
 
@@ -41,6 +46,21 @@ with gr.Blocks() as demo:
         search_output = gr.Gallery(label="Результаты")
         search_btn = gr.Button("Найти")
         search_btn.click(handle_search, search_query, search_output)
+
+
+with gr.Tab("Распознавание"):
+    recognition_image = gr.Image(type="filepath", label="Изображение для распознавания")
+    recognition_output = gr.JSON(label="Результат")
+    recognize_btn = gr.Button("Распознать")
+
+    def handle_recognition(image):
+        results = process_recognition(image)
+        return results
+
+    recognize_btn.click(
+        handle_recognition, inputs=recognition_image, outputs=recognition_output
+    )
+
 
 if __name__ == "__main__":
     demo.launch()
