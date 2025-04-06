@@ -7,7 +7,7 @@ conn = init_db()
 
 
 def handle_upload(file, zip_file):
-    """Обработка загрузки файлов [[2]][[8]]"""
+    """Обработка загрузки файлов"""
     if file:
         filename, save_path = process_single_image(file)
         save_to_db(conn, filename, save_path)
@@ -20,7 +20,7 @@ def handle_upload(file, zip_file):
 
 
 def handle_search(query):
-    """Обработка поиска [[5]]"""
+    """Обработка поиска"""
     results = search_images(query)
     return results if results else "Ничего не найдено"
 
