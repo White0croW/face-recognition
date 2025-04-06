@@ -12,7 +12,7 @@ def init_db():
             id INTEGER PRIMARY KEY,
             filename TEXT,
             file_path TEXT,
-            embedding BLOB  # Хранение векторов [[7]]
+            embedding BLOB  
         )
     """
     )
