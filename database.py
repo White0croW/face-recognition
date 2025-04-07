@@ -11,7 +11,7 @@ def init_db():
             id INTEGER PRIMARY KEY,
             filename TEXT,
             image BLOB,
-            embedding BLOB  # Хранение вектора лица [[4]]
+            embedding BLOB 
         )
     """
     )
