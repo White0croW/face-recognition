@@ -13,11 +13,7 @@ class FaceRecognitionUI:
         st.title("Система распознавания лиц")
         menu = st.sidebar.selectbox(
             "Меню",
-            [
-                "Добавить в БД",
-                "Распознать",
-                "Фотографии из БД",
-            ],  # Добавлен раздел с фото [[7]]
+            ["Добавить в БД", "Распознать", "Фотографии из БД"],
         )
 
         if menu == "Добавить в БД":
@@ -36,48 +32,25 @@ class FaceRecognitionUI:
         )
 
         if files:
-            # Подсчёт всех валидных изображений (включая вложенные в ZIP)
-            total_images = 0
-            for file in files:
-                if file.type in ["application/zip", "application/x-zip-compressed"]:
-                    with zipfile.ZipFile(file) as z:
-                        total_images += len(
-                            [
-                                f
-                                for f in z.namelist()
-                                if not f.startswith("__MACOSX/")
-                                and not f.endswith("/")
-                                and f.lower().endswith((".jpg", ".png"))
-                            ]
-                        )
-                else:
-                    total_images += 1
-
+            total_images = self._count_total_images(files)
             progress_bar = st.progress(0)
             success = 0
             errors = []
 
-            # Обработка файлов
             for file in files:
                 try:
                     if file.type in ["application/zip", "application/x-zip-compressed"]:
-                        with zipfile.ZipFile(file) as z:
-                            for name in z.namelist():
-                                if (
-                                    not name.startswith("__MACOSX/")
-                                    and not name.endswith("/")
-                                    and name.lower().endswith((".jpg", ".png"))
-                                ):
-                                    img_bytes = z.read(name)
-                                    self.service.add_image_to_db(img_bytes)
-                                    success += 1
-                                    progress_bar.progress(success / total_images)
+                        images = self._process_zip(file)
+                        for img_bytes in images:
+                            self.service.add_image_to_db(img_bytes)
+                            success += 1
+                            progress_bar.progress(success / total_images)
                     else:
                         self.service.add_image_to_db(file.getvalue())
                         success += 1
                         progress_bar.progress(success / total_images)
                 except Exception as e:
-                    errors.append(f"Ошибка в файле {file.name}: {str(e)}")
+                    errors.append(str(e))
 
             progress_bar.empty()
             st.success(f"✅ Загружено изображений: {success}")
@@ -100,7 +73,6 @@ class FaceRecognitionUI:
             self._process_recognition(image_bytes)
 
     def _process_recognition(self, image_bytes):
-        # Получаем общее количество изображений в БД для прогресса [[6]]
         total_images = self.service.db.get_image_count()
         if total_images == 0:
             st.error("База данных пуста")
@@ -114,7 +86,6 @@ class FaceRecognitionUI:
             st.error("Лицо не обнаружено")
             return
 
-        # Обработка с прогресс-баром [[3]]
         for i, db_img in enumerate(self.service.db.get_all_images()):
             try:
                 db_embedding = self.service._extract_embedding(db_img)
@@ -142,13 +113,26 @@ class FaceRecognitionUI:
 
     def _render_photos(self):
         st.header("Фотографии из БД")
-        images = self.service.get_all_images()
+        images = self.service.db.get_all_images()
 
         if not images:
             st.info("База данных пуста")
             return
 
-        for i, img_bytes in enumerate(images):
+        # Настройки пагинации
+        page_size = 10  # Количество изображений на странице
+        total_pages = (len(images) // page_size) + (
+            1 if len(images) % page_size != 0 else 0
+        )
+        page_number = st.number_input(
+            "Страница", min_value=1, max_value=total_pages, value=1, step=1
+        )
+
+        # Вычисление диапазона изображений для текущей страницы
+        start_idx = (page_number - 1) * page_size
+        end_idx = start_idx + page_size
+
+        for i, img_bytes in enumerate(images[start_idx:end_idx], start=start_idx):
             try:
                 nparr = np.frombuffer(img_bytes, np.uint8)
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
@@ -156,3 +140,33 @@ class FaceRecognitionUI:
                 st.image(img, caption=f"Изображение {i+1}", use_container_width=True)
             except Exception as e:
                 st.warning(f"Ошибка отображения изображения {i}: {e}")
+
+    def _process_zip(self, zip_file):
+        """Обработка ZIP-архива и извлечение изображений"""
+        with zipfile.ZipFile(zip_file) as z:
+            return [
+                z.read(name)
+                for name in z.namelist()
+                if not name.startswith("__MACOSX/")
+                and not name.endswith("/")
+                and name.lower().endswith((".jpg", ".png"))
+            ]
+
+    def _count_total_images(self, files):
+        """Подсчёт всех валидных изображений (включая вложенные в ZIP)"""
+        total_images = 0
+        for file in files:
+            if file.type in ["application/zip", "application/x-zip-compressed"]:
+                with zipfile.ZipFile(file) as z:
+                    total_images += len(
+                        [
+                            f
+                            for f in z.namelist()
+                            if not f.startswith("__MACOSX/")
+                            and not f.endswith("/")
+                            and f.lower().endswith((".jpg", ".png"))
+                        ]
+                    )
+            else:
+                total_images += 1
+        return total_images

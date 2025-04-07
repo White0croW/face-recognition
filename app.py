@@ -4,7 +4,7 @@ from database import SQLiteDB
 from face_service import FaceService
 from ui import FaceRecognitionUI
 
-os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # Отключаем предупреждения TensorFlow [[1]]
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # Отключаем предупреждения TensorFlow
 
 
 def main():
