@@ -72,43 +72,24 @@ class FaceRecognitionUI:
             self._process_recognition(image_bytes)
 
     def _process_recognition(self, image_bytes):
-        total_images = self.service.db.get_image_count()
-        if total_images == 0:
-            st.error("База данных пуста")
-            return
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Загруженное изображение:")
+            st.image(image_bytes, use_container_width=True)
 
-        progress_bar = st.progress(0)
-        matches = []
-        query_embedding = self.service._extract_embedding(image_bytes)
-
-        if query_embedding is None:
-            st.error("Лицо не обнаружено")
-            return
-
-        for i, db_img in enumerate(self.service.db.get_all_images()):
-            try:
-                db_embedding = self.service._extract_embedding(db_img)
-                if db_embedding is not None:
-                    similarity = self.service._calculate_similarity(
-                        query_embedding, db_embedding
+        matches = self.service.recognize_face(image_bytes, threshold=0.6)
+        with col2:
+            if matches:
+                st.subheader("Найденные совпадения:")
+                for match in matches:
+                    img_with_box = self._draw_face_box(
+                        match["image"], match["face_location"]
                     )
-                    if similarity >= 0.6:
-                        matches.append({"image": db_img, "similarity": similarity})
-            except Exception as e:
-                print(f"Ошибка обработки изображения из БД: {e}")
-            finally:
-                progress_bar.progress((i + 1) / total_images)
-
-        progress_bar.empty()
-        self._display_matches(matches)
-
-    def _display_matches(self, matches):
-        if matches:
-            st.write(f"Найдено: {len(matches)}")
-            for match in matches:
-                st.image(match["image"], caption=f"Сходство: {match['similarity']:.2f}")
-        else:
-            st.error("Совпадений не найдено")
+                    st.image(
+                        img_with_box, caption=f'Сходство: {match["similarity"]:.2f}'
+                    )
+            else:
+                st.error("Совпадений не найдено")
 
     def _draw_face_box(self, image_bytes, face_location):
         nparr = np.frombuffer(image_bytes, np.uint8)
@@ -139,34 +120,22 @@ class FaceRecognitionUI:
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 st.image(img, caption=f'ID: {img_info["id"]}', use_container_width=True)
             except Exception as e:
-                st.warning(f"Ошибка отображения изображения {i}: {e}")
-
-    def _process_zip(self, zip_file):
-        """Обработка ZIP-архива и извлечение изображений"""
-        with zipfile.ZipFile(zip_file) as z:
-            return [
-                z.read(name)
-                for name in z.namelist()
-                if not name.startswith("__MACOSX/")
-                and not name.endswith("/")
-                and name.lower().endswith((".jpg", ".png"))
-            ]
+                st.warning(f"Ошибка отображения изображения: {e}")
 
     def _count_total_images(self, files):
-        """Подсчёт всех валидных изображений (включая вложенные в ZIP)"""
-        total_images = 0
+        count = 0
         for file in files:
             if file.type in ["application/zip", "application/x-zip-compressed"]:
                 with zipfile.ZipFile(file) as z:
-                    total_images += len(
-                        [
-                            f
-                            for f in z.namelist()
-                            if not f.startswith("__MACOSX/")
-                            and not f.endswith("/")
-                            and f.lower().endswith((".jpg", ".png"))
-                        ]
-                    )
+                    count += len(z.namelist())
             else:
-                total_images += 1
-        return total_images
+                count += 1
+        return count
+
+    def _process_zip(self, file):
+        with zipfile.ZipFile(file) as z:
+            return [
+                z.read(name)
+                for name in z.namelist()
+                if name.lower().endswith((".jpg", ".png"))
+            ]

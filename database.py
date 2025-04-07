@@ -3,26 +3,40 @@ import pickle
 
 
 class SQLiteDB:
-    def __init__(self, db_path):
-        self.conn = sqlite3.connect(db_path)
-        self._create_table()
+    def __init__(self, db_name):
+        self.conn = sqlite3.connect(db_name, check_same_thread=False)
+        self._create_tables()
 
-    def _create_table(self):
-        self.conn.execute(
+    def _create_tables(self):
+        cursor = self.conn.cursor()
+        cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS faces (
-                id INTEGER PRIMARY KEY,
-                image BLOB NOT NULL
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                embeddings BLOB NOT NULL,  -- Массив эмбеддингов лиц
+                face_locations BLOB NOT NULL,  -- Координаты лиц
+                image BLOB NOT NULL  -- Оригинальное изображение
             )
         """
         )
-
-    def save_image(self, image_bytes: bytes):
-        cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO faces (image) VALUES (?)", (image_bytes,))
         self.conn.commit()
 
-    def get_all_images(self):
+    def save_image(self, image_bytes: bytes, embeddings, face_locations):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO faces (embeddings, face_locations, image)
+            VALUES (?, ?, ?)
+        """,
+            (
+                pickle.dumps(embeddings),  # Сериализация списка эмбеддингов
+                pickle.dumps(face_locations),  # Сериализация координат лиц
+                image_bytes,
+            ),
+        )
+        self.conn.commit()
+
+    def get_all_faces(self):
         cursor = self.conn.cursor()
         cursor.execute("SELECT id, embeddings, face_locations, image FROM faces")
         return [
@@ -34,8 +48,3 @@ class SQLiteDB:
             }
             for row in cursor.fetchall()
         ]
-
-    def get_image_count(self):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM faces")
-        return cursor.fetchone()[0]
