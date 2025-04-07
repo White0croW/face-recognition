@@ -80,8 +80,10 @@ class FaceRecognitionUI:
             return
 
         # Отображаем загруженное изображение
-        st.subheader("Загруженное изображение:")
-        st.image(image_bytes, caption="Загруженное фото", use_container_width=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Загруженное изображение:")
+            st.image(image_bytes, caption="Загруженное фото", use_container_width=True)
 
         progress_bar = st.progress(0)
         matches = []
@@ -94,12 +96,13 @@ class FaceRecognitionUI:
         for i, db_img in enumerate(self.service.db.get_all_images()):
             try:
                 db_embedding = self.service._extract_embedding(db_img)
-                if db_embedding is not None:
-                    similarity = self.service._calculate_similarity(
-                        query_embedding, db_embedding
-                    )
-                    if similarity >= 0.6:
-                        matches.append({"image": db_img, "similarity": similarity})
+                if db_embedding is None:
+                    continue
+                similarity = self.service._calculate_similarity(
+                    query_embedding, db_embedding
+                )
+                if similarity >= 0.6:
+                    matches.append({"image": db_img, "similarity": similarity})
             except Exception as e:
                 print(f"Ошибка обработки изображения из БД: {e}")
             finally:
@@ -110,10 +113,14 @@ class FaceRecognitionUI:
 
     def _display_matches(self, matches):
         if matches:
-            st.write(f"Найдено: {len(matches)}")
-            for match in matches:
-                img_with_faces = self._detect_faces(match["image"])
-                st.image(img_with_faces, caption=f"Сходство: {match['similarity']:.2f}")
+            col1, col2 = st.columns(2)
+            with col2:
+                st.subheader("Найденные совпадения:")
+                for match in matches:
+                    img_with_faces = self._detect_faces(match["image"])
+                    st.image(
+                        img_with_faces, caption=f"Сходство: {match['similarity']:.2f}"
+                    )
         else:
             st.error("Совпадений не найдено")
 
@@ -149,30 +156,34 @@ class FaceRecognitionUI:
 
     def _detect_faces(self, image_bytes):
         """Обнаружение лиц на изображении"""
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None or img.size == 0:
-            return None
+        try:
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if img is None or img.size == 0:
+                return None
 
-        # Преобразование из BGR в RGB (face_recognition использует RGB)
-        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            # Преобразование из BGR в RGB
+            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        # Обнаружение лиц
-        face_locations = DeepFace.extract_faces(
-            rgb_img, detector_backend="opencv", enforce_detection=False
-        )
-
-        # Рисование рамок вокруг лиц
-        for face in face_locations:
-            x, y, w, h = (
-                face["facial_area"]["x"],
-                face["facial_area"]["y"],
-                face["facial_area"]["w"],
-                face["facial_area"]["h"],
+            # Обнаружение лиц
+            face_locations = DeepFace.extract_faces(
+                rgb_img, detector_backend="opencv", enforce_detection=False
             )
-            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        return img
+            # Рисование рамок вокруг лиц
+            for face in face_locations:
+                x, y, w, h = (
+                    face["facial_area"]["x"],
+                    face["facial_area"]["y"],
+                    face["facial_area"]["w"],
+                    face["facial_area"]["h"],
+                )
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+            return img
+        except Exception as e:
+            print(f"Ошибка при обработке изображения: {e}")
+            return None
 
     def _count_total_images(self, files):
         count = 0
