@@ -63,4 +63,7 @@ class FaceService:
         """Вычисление косинусного сходства"""
         vec1 = np.frombuffer(emb1, dtype=np.float32)
         vec2 = np.frombuffer(emb2, dtype=np.float32)
-        return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+        # Нормализация векторов
+        vec1 = vec1 / np.linalg.norm(vec1)
+        vec2 = vec2 / np.linalg.norm(vec2)
+        return np.dot(vec1, vec2)
