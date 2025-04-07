@@ -12,33 +12,19 @@ class SQLiteDB:
             """
             CREATE TABLE IF NOT EXISTS faces (
                 id INTEGER PRIMARY KEY,
-                embedding BLOB NOT NULL,
-                image BLOB NOT NULL
+                image BLOB NOT NULL  -- Убрано поле embedding
             )
         """
         )
 
-    def save_face(self, embedding: bytes, image: bytes):
+    def save_image(self, image_bytes: bytes):
+        """Сохраняет изображение без анализа"""
         cursor = self.conn.cursor()
-        cursor.execute(
-            "INSERT INTO faces (embedding, image) VALUES (?, ?)", (embedding, image)
-        )
+        cursor.execute("INSERT INTO faces (image) VALUES (?)", (image_bytes,))
         self.conn.commit()
 
-    def find_matches(self, query_embedding: bytes, threshold=0.6):
+    def get_all_images(self):
+        """Возвращает все изображения из БД"""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT embedding, image FROM faces")
-
-        matches = []
-        query = np.frombuffer(query_embedding, dtype=np.float32)
-
-        for row in cursor.fetchall():
-            db_embedding = np.frombuffer(row[0], dtype=np.float32)
-            similarity = np.dot(query, db_embedding) / (
-                np.linalg.norm(query) * np.linalg.norm(db_embedding)
-            )
-
-            if similarity >= threshold:
-                matches.append({"similarity": similarity, "image": row[1]})
-
-        return sorted(matches, key=lambda x: -x["similarity"])
+        cursor.execute("SELECT image FROM faces")
+        return [row[0] for row in cursor.fetchall()]

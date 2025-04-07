@@ -25,12 +25,28 @@ class FaceRecognitionUI:
         )
 
         if files:
-            for file in files:
+            total_files = self._count_files(files)
+            progress_bar = st.progress(0)
+            success = 0
+
+            for i, file in enumerate(files):
                 if file.type == "application/zip":
-                    self._process_zip(file)
+                    with ZipFile(file) as z:
+                        filelist = [
+                            f
+                            for f in z.namelist()
+                            if f.lower().endswith((".jpg", ".png"))
+                        ]
+                        for j, name in enumerate(filelist):
+                            self.service.add_image_to_db(z.read(name))
+                            progress_bar.progress((i + j / len(filelist)) / total_files)
                 else:
                     self.service.add_image_to_db(file.getvalue())
-            st.success("Данные добавлены!")
+                    progress_bar.progress((i + 1) / total_files)
+                success += 1
+
+            progress_bar.empty()
+            st.success(f"✅ Загружено файлов: {success}")
 
     def _process_zip(self, zip_file):
         with ZipFile(zip_file) as z:
