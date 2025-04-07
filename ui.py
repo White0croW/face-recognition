@@ -77,13 +77,27 @@ class FaceRecognitionUI:
             st.subheader("Загруженное изображение:")
             st.image(image_bytes, use_container_width=True)
 
-        matches = self.service.recognize_face(image_bytes, threshold=0.6)
+        # Преобразуем байты в массив один раз [[4]]
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            st.error("Ошибка: Загруженное изображение повреждено")
+            return
+
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        img = np.ascontiguousarray(img)
+
+        # Передаем массив напрямую в сервис
+        matches = self.service.recognize_face(img, threshold=0.6)
+
         with col2:
             if matches:
                 st.subheader("Найденные совпадения:")
                 for match in matches:
+                    img_bytes_db = cv2.imencode(".jpg", match["image"])[1].tobytes()
                     img_with_box = self._draw_face_box(
-                        match["image"], match["face_location"]
+                        img_bytes_db, match["face_location"]
                     )
                     st.image(
                         img_with_box, caption=f"Сходство: {match['similarity']:.2f}"

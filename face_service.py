@@ -11,10 +11,10 @@ class FaceService:
         if not self._validate_image(image_bytes):
             raise ValueError("Некорректное изображение")
 
-        # Преобразуем байты в массив
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        img = np.ascontiguousarray(img)  # Для совместимости с OpenCV
+        if img is None:
+            raise ValueError("Ошибка декодирования изображения")
 
         faces = DeepFace.extract_faces(
             img_path=img,  # Передаем массив, а не байты
@@ -43,7 +43,7 @@ class FaceService:
         if not embeddings:
             raise ValueError("Не удалось извлечь эмбеддинги")
 
-        self.db.save_image(image_bytes, embeddings, face_locations)
+        self.db.save_image(img, embeddings, face_locations)
 
     def _extract_embedding(self, face_roi):
         try:
@@ -69,13 +69,29 @@ class FaceService:
         face_roi = img[top:bottom, left:right]
         return np.ascontiguousarray(face_roi)  # Добавлено [[4]]
 
-    def recognize_face(self, image_bytes: bytes, threshold=0.6):
-        query_faces = self._process_query_image(image_bytes)
+    def recognize_face(
+        self, img: np.ndarray, threshold=0.6
+    ):  # Принимаем массив, а не байты
+        # Убрано декодирование байтов — img уже массив [[4]]
+        if img is None:
+            raise ValueError("Ошибка декодирования изображения")
+
+        # Проверка каналов
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        img = np.ascontiguousarray(img)
+
+        query_faces = self._process_query_image(img)
         if not query_faces:
             return []
 
         matches = []
         for db_face in self.db.get_all_faces():
+            nparr_db = np.frombuffer(db_face["image"], np.uint8)
+            db_img = cv2.imdecode(nparr_db, cv2.IMREAD_COLOR)
+            if db_img is None:
+                continue
+
             for q_emb, q_loc in query_faces:
                 for db_emb, db_loc in zip(
                     db_face["embeddings"], db_face["face_locations"]
@@ -84,7 +100,7 @@ class FaceService:
                     if similarity >= threshold:
                         matches.append(
                             {
-                                "image": db_face["image"],
+                                "image": db_img,
                                 "face_location": db_loc,
                                 "similarity": similarity,
                             }
@@ -107,11 +123,11 @@ class FaceService:
         vec2 = vec2 / np.linalg.norm(vec2)
         return np.dot(vec1, vec2)
 
-    def _process_query_image(self, image_bytes):
+    def _process_query_image(self, img: np.ndarray):
+        # Теперь img — массив NumPy [[4]]
         faces = DeepFace.extract_faces(
-            img_path=image_bytes, detector_backend="mtcnn", enforce_detection=False
+            img_path=img, detector_backend="mtcnn", enforce_detection=False
         )
-
         query_data = []
         for face in faces:
             x, y, w, h = (
@@ -120,7 +136,7 @@ class FaceService:
                 face["facial_area"]["w"],
                 face["facial_area"]["h"],
             )
-            face_roi = self._crop_face(image_bytes, y, x, y + h, x + w)
+            face_roi = img[y : y + h, x : x + w]
             embedding = self._extract_embedding(face_roi)
             if embedding is not None:
                 query_data.append((embedding, (y, x, y + h, x + w)))

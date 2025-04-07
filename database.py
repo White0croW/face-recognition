@@ -1,5 +1,7 @@
 import sqlite3
 import pickle
+import numpy as np
+import cv2
 
 
 class SQLiteDB:
@@ -21,14 +23,22 @@ class SQLiteDB:
         )
         self.conn.commit()
 
-    def save_image(self, image_bytes: bytes, embeddings, face_locations):
+    def save_image(self, image: np.ndarray, embeddings, face_locations):
+        # Конвертируем массив в байты перед сохранением [[5]]
+        _, buffer = cv2.imencode(".jpg", image)
+        image_bytes = buffer.tobytes()
+
         cursor = self.conn.cursor()
         cursor.execute(
             """
             INSERT INTO faces (embeddings, face_locations, image)
             VALUES (?, ?, ?)
         """,
-            (pickle.dumps(embeddings), pickle.dumps(face_locations), image_bytes),
+            (
+                pickle.dumps(embeddings),
+                pickle.dumps(face_locations),
+                image_bytes,  # Сохраняем байты, а не массив [[5]]
+            ),
         )
         self.conn.commit()
 
