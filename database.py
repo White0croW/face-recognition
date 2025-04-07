@@ -24,7 +24,10 @@ class SQLiteDB:
     def save_image(self, image_bytes: bytes, embeddings, face_locations):
         cursor = self.conn.cursor()
         cursor.execute(
-            "INSERT INTO faces (embeddings, face_locations, image) VALUES (?, ?, ?)",
+            """
+            INSERT INTO faces (embeddings, face_locations, image)
+            VALUES (?, ?, ?)
+        """,
             (pickle.dumps(embeddings), pickle.dumps(face_locations), image_bytes),
         )
         self.conn.commit()
@@ -41,3 +44,8 @@ class SQLiteDB:
             }
             for row in cursor.fetchall()
         ]
+
+    def get_image_count(self):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM faces")
+        return cursor.fetchone()[0]

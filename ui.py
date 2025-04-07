@@ -12,8 +12,7 @@ class FaceRecognitionUI:
     def render(self):
         st.title("Система распознавания лиц")
         menu = st.sidebar.selectbox(
-            "Меню",
-            ["Добавить в БД", "Распознать", "Фотографии из БД"],
+            "Меню", ["Добавить в БД", "Распознать", "Фотографии из БД"]
         )
 
         if menu == "Добавить в БД":
@@ -33,7 +32,7 @@ class FaceRecognitionUI:
 
         if files:
             total_images = self._count_total_images(files)
-            progress_bar = st.progress(0)
+            progress = st.progress(0)
             success = 0
             errors = []
 
@@ -44,15 +43,15 @@ class FaceRecognitionUI:
                         for img_bytes in images:
                             self.service.add_image_to_db(img_bytes)
                             success += 1
-                            progress_bar.progress(success / total_images)
+                            progress.progress(success / total_images)
                     else:
                         self.service.add_image_to_db(file.getvalue())
                         success += 1
-                        progress_bar.progress(success / total_images)
+                        progress.progress(success / total_images)
                 except Exception as e:
                     errors.append(str(e))
 
-            progress_bar.empty()
+            progress.empty()
             st.success(f"✅ Загружено изображений: {success}")
             if errors:
                 st.error(f"❌ Ошибок: {len(errors)}")
@@ -74,11 +73,16 @@ class FaceRecognitionUI:
 
     def _process_recognition(self, image_bytes):
         col1, col2 = st.columns(2)
+
+        # Отображение загруженного изображения слева
         with col1:
             st.subheader("Загруженное изображение:")
             st.image(image_bytes, use_container_width=True)
 
+        # Поиск совпадений
         matches = self.service.recognize_face(image_bytes, threshold=0.6)
+
+        # Отображение результатов справа
         with col2:
             if matches:
                 st.subheader("Найденные совпадения:")
@@ -87,7 +91,7 @@ class FaceRecognitionUI:
                         match["image"], match["face_location"]
                     )
                     st.image(
-                        img_with_box, caption=f"Сходство: {match['similarity']:.2f}"
+                        img_with_box, caption=f'Сходство: {match["similarity"]:.2f}'
                     )
             else:
                 st.error("Совпадений не найдено")
@@ -95,7 +99,7 @@ class FaceRecognitionUI:
     def _draw_face_box(self, image_bytes, face_location):
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        top, right, bottom, left = face_location
+        top, left, bottom, right = face_location
         cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 2)
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
@@ -107,13 +111,19 @@ class FaceRecognitionUI:
             st.info("База данных пуста")
             return
 
-        for img_info in images:
+        page_size = 10
+        total_pages = (len(images) // page_size) + (1 if len(images) % page_size else 0)
+        page = st.number_input("Страница", 1, total_pages, 1)
+
+        start = (page - 1) * page_size
+        end = start + page_size
+
+        for img_info in images[start:end]:
             try:
-                img_bytes = img_info["image"]
-                nparr = np.frombuffer(img_bytes, np.uint8)
+                nparr = np.frombuffer(img_info["image"], np.uint8)
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                st.image(img, caption=f"ID: {img_info['id']}", use_container_width=True)
+                st.image(img, caption=f'ID: {img_info["id"]}', use_container_width=True)
             except Exception as e:
                 st.warning(f"Ошибка отображения изображения: {e}")
 
@@ -128,9 +138,9 @@ class FaceRecognitionUI:
         return count
 
     def _process_zip(self, file):
-        images = []
         with zipfile.ZipFile(file) as z:
-            for name in z.namelist():
-                if name.lower().endswith((".jpg", ".png")):
-                    images.append(z.read(name))
-        return images
+            return [
+                z.read(name)
+                for name in z.namelist()
+                if name.lower().endswith((".jpg", ".png"))
+            ]
