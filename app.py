@@ -1,7 +1,10 @@
+import os
 import streamlit as st
-from ui import FaceRecognitionUI
 from database import SQLiteDB
 from face_service import FaceService
+from ui import FaceRecognitionUI
+
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # Отключаем предупреждения TensorFlow [[1]]
 
 
 def main():

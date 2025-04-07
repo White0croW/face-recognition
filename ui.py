@@ -3,9 +3,6 @@ import zipfile
 import numpy as np
 import cv2
 from io import BytesIO
-from streamlit_extras.carousel import (
-    carousel,
-)  # Установите: pip install streamlit-extras
 
 
 class FaceRecognitionUI:
@@ -151,18 +148,11 @@ class FaceRecognitionUI:
             st.info("База данных пуста")
             return
 
-        # Преобразование байтов в изображения для слайдера [[7]]
-        image_list = []
-        for img_bytes in images:
+        for i, img_bytes in enumerate(images):
             try:
                 nparr = np.frombuffer(img_bytes, np.uint8)
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                image_list.append(img)
-            except Exception:
-                continue  # Пропуск повреждённых изображений
-
-        if image_list:
-            carousel(image_list, width=300, height=300)  # Слайдер [[7]]
-        else:
-            st.error("Нет валидных изображений для отображения")
+                st.image(img, caption=f"Изображение {i+1}", use_container_width=True)
+            except Exception as e:
+                st.warning(f"Ошибка отображения изображения {i}: {e}")
