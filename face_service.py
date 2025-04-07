@@ -1,6 +1,7 @@
 import numpy as np
 from deepface import DeepFace
 from database import Database
+import cv2
 
 
 class FaceService:
