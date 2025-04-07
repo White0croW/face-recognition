@@ -1,4 +1,5 @@
 from deepface import DeepFace
+import numpy as np
 
 
 def recognize_face(image):
