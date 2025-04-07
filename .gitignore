@@ -173,8 +173,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-.db
-db
+faces.db
 .vscode
-.json
-json
