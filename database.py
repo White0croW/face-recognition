@@ -2,48 +2,44 @@ import sqlite3
 import numpy as np
 
 
-def init_db():
-    conn = sqlite3.connect("faces.db")
-    cursor = conn.cursor()
-    cursor.execute(
+class FaceDatabase:
+    def __init__(self, db_path="faces.db"):
+        self.conn = sqlite3.connect(db_path)
+        self.create_table()
+
+    def create_table(self):
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS faces (
+                id INTEGER PRIMARY KEY,
+                embedding BLOB,
+                image BLOB
+            )
         """
-        CREATE TABLE IF NOT EXISTS faces (
-            id INTEGER PRIMARY KEY,
-            filename TEXT,
-            image BLOB,
-            embedding BLOB 
         )
-    """
-    )
-    conn.commit()
-    return conn
 
-
-def save_image(filename, image_blob, embedding):
-    conn = sqlite3.connect("faces.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        INSERT INTO faces (filename, image, embedding)
-        VALUES (?, ?, ?)
-    """,
-        (filename, image_blob, embedding.tobytes()),
-    )
-    conn.commit()
-    conn.close()
-
-
-def search_faces(query_emb, threshold=0.7):
-    conn = sqlite3.connect("faces.db")
-    cursor = cursor = conn.cursor()
-    cursor.execute("SELECT filename, image, embedding FROM faces")
-    results = []
-    for row in cursor.fetchall():
-        name, img_blob, emb_blob = row
-        db_emb = np.frombuffer(emb_blob)
-        similarity = np.dot(query_emb, db_emb) / (
-            np.linalg.norm(query_emb) * np.linalg.norm(db_emb)
+    def insert_embedding(self, embedding, image_bytes):
+        self.conn.execute(
+            "INSERT INTO faces (embedding, image) VALUES (?, ?)",
+            (np.array(embedding).tobytes(), image_bytes),
         )
-        if similarity >= threshold:
-            results.append((name, img_blob))
-    return results
+        self.conn.commit()
+
+    def find_similar(self, query_embedding, threshold=0.6):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM faces")
+        matches = []
+        for row in cursor.fetchall():
+            db_embedding = np.frombuffer(row[1], dtype=np.float32)
+            similarity = np.dot(query_embedding, db_embedding) / (
+                np.linalg.norm(query_embedding) * np.linalg.norm(db_embedding)
+            )
+            if similarity > threshold:
+                matches.append(
+                    {"id": row[0], "image": row[2], "similarity": similarity}
+                )
+        return sorted(matches, key=lambda x: -x["similarity"])
+
+
+def get_db_connection():
+    return FaceDatabase()

@@ -1,19 +1,13 @@
-from transformers import AutoModel, AutoImageProcessor
-import torch
-import numpy as np
-from PIL import Image
+from deepface import DeepFace
 
 
-class FaceRecognizer:
-    def __init__(self):
-        # Загрузка модели для генерации embedding [[3]]
-        self.model = AutoModel.from_pretrained("facebook/face-embeddings-256")
-        self.processor = AutoImageProcessor.from_pretrained(
-            "facebook/face-embeddings-256"
-        )
-
-    def get_embedding(self, image: Image.Image):
-        inputs = self.processor(images=image, return_tensors="pt")
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-        return outputs.last_hidden_state.mean(dim=1).squeeze().numpy()
+def recognize_face(image):
+    """Извлекает эмбеддинг лица из изображения."""
+    try:
+        embedding = DeepFace.represent(
+            image, model_name="ArcFace", enforce_detection=False
+        )[0]["embedding"]
+        return np.array(embedding)
+    except Exception as e:
+        print(f"Ошибка распознавания: {e}")
+        return None
