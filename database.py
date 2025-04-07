@@ -1,5 +1,4 @@
 import sqlite3
-import numpy as np
 
 
 class SQLiteDB:
@@ -12,19 +11,22 @@ class SQLiteDB:
             """
             CREATE TABLE IF NOT EXISTS faces (
                 id INTEGER PRIMARY KEY,
-                image BLOB NOT NULL  -- Убрано поле embedding
+                image BLOB NOT NULL
             )
         """
         )
 
     def save_image(self, image_bytes: bytes):
-        """Сохраняет изображение без анализа"""
         cursor = self.conn.cursor()
         cursor.execute("INSERT INTO faces (image) VALUES (?)", (image_bytes,))
         self.conn.commit()
 
     def get_all_images(self):
-        """Возвращает все изображения из БД"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT image FROM faces")
         return [row[0] for row in cursor.fetchall()]
+
+    def get_image_count(self):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM faces")
+        return cursor.fetchone()[0]
