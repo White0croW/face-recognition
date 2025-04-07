@@ -13,9 +13,9 @@ class SQLiteDB:
             """
             CREATE TABLE IF NOT EXISTS faces (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                embeddings BLOB NOT NULL,  -- Массив эмбеддингов лиц
-                face_locations BLOB NOT NULL,  -- Координаты лиц
-                image BLOB NOT NULL  -- Оригинальное изображение
+                embeddings BLOB NOT NULL,
+                face_locations BLOB NOT NULL,
+                image BLOB NOT NULL
             )
         """
         )
@@ -28,11 +28,7 @@ class SQLiteDB:
             INSERT INTO faces (embeddings, face_locations, image)
             VALUES (?, ?, ?)
         """,
-            (
-                pickle.dumps(embeddings),  # Сериализация списка эмбеддингов
-                pickle.dumps(face_locations),  # Сериализация координат лиц
-                image_bytes,
-            ),
+            (pickle.dumps(embeddings), pickle.dumps(face_locations), image_bytes),
         )
         self.conn.commit()
 

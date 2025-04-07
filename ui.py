@@ -86,7 +86,7 @@ class FaceRecognitionUI:
                         match["image"], match["face_location"]
                     )
                     st.image(
-                        img_with_box, caption=f'Сходство: {match["similarity"]:.2f}'
+                        img_with_box, caption=f"Сходство: {match['similarity']:.2f}"
                     )
             else:
                 st.error("Совпадений не найдено")
@@ -94,6 +94,7 @@ class FaceRecognitionUI:
     def _draw_face_box(self, image_bytes, face_location):
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        img = np.ascontiguousarray(img)  # Добавлено [[4]]
         top, left, bottom, right = face_location
         cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 2)
         return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -118,22 +119,28 @@ class FaceRecognitionUI:
                 nparr = np.frombuffer(img_info["image"], np.uint8)
                 img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
                 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                st.image(img, caption=f'ID: {img_info["id"]}', use_container_width=True)
+                st.image(img, caption=f"ID: {img_info['id']}", use_container_width=True)
             except Exception as e:
                 st.warning(f"Ошибка отображения изображения: {e}")
 
     def _count_total_images(self, files):
-        count = 0
+        total = 0
         for file in files:
             if file.type in ["application/zip", "application/x-zip-compressed"]:
                 with zipfile.ZipFile(file) as z:
-                    count += len(z.namelist())
+                    total += len(
+                        [
+                            name
+                            for name in z.namelist()
+                            if name.lower().endswith((".jpg", ".png"))
+                        ]
+                    )
             else:
-                count += 1
-        return count
+                total += 1
+        return total
 
-    def _process_zip(self, file):
-        with zipfile.ZipFile(file) as z:
+    def _process_zip(self, zip_file):
+        with zipfile.ZipFile(zip_file) as z:
             return [
                 z.read(name)
                 for name in z.namelist()
