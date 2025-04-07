@@ -2,7 +2,7 @@ import sqlite3
 import numpy as np
 
 
-class Database:
+class SQLiteDB:
     def __init__(self, db_path):
         self.conn = sqlite3.connect(db_path)
         self._create_table()
