@@ -1,4 +1,5 @@
 import sqlite3
+import numpy as np
 
 
 class SQLiteDB:

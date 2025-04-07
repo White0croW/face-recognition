@@ -1,3 +1,4 @@
+from deepface import DeepFace
 import streamlit as st
 import zipfile
 import numpy as np
