@@ -13,7 +13,7 @@ class FaceService:
             raise ValueError("Некорректное изображение")
         self.db.save_image(image_bytes)
 
-    def recognize_face(self, image_bytes: bytes, threshold=0.6, model_name="ArcFace"):
+    def recognize_face(self, image_bytes: bytes, threshold=1.0, model_name="ArcFace"):
         """Распознавание лица и поиск совпадений"""
         query_embedding = self._extract_embedding(image_bytes, model_name=model_name)
         if query_embedding is None:
