@@ -78,6 +78,10 @@ class FaceRecognitionUI:
             st.error("База данных пуста")
             return
 
+        # Отображаем загруженное изображение
+        st.subheader("Загруженное изображение:")
+        st.image(image_bytes, caption="Загруженное фото", use_container_width=True)
+
         progress_bar = st.progress(0)
         matches = []
         query_embedding = self.service._extract_embedding(image_bytes)
@@ -107,7 +111,8 @@ class FaceRecognitionUI:
         if matches:
             st.write(f"Найдено: {len(matches)}")
             for match in matches:
-                st.image(match["image"], caption=f"Сходство: {match['similarity']:.2f}")
+                img_with_faces = self._detect_faces(match["image"])
+                st.image(img_with_faces, caption=f"Сходство: {match['similarity']:.2f}")
         else:
             st.error("Совпадений не найдено")
 
@@ -141,32 +146,48 @@ class FaceRecognitionUI:
             except Exception as e:
                 st.warning(f"Ошибка отображения изображения {i}: {e}")
 
-    def _process_zip(self, zip_file):
-        """Обработка ZIP-архива и извлечение изображений"""
-        with zipfile.ZipFile(zip_file) as z:
-            return [
-                z.read(name)
-                for name in z.namelist()
-                if not name.startswith("__MACOSX/")
-                and not name.endswith("/")
-                and name.lower().endswith((".jpg", ".png"))
-            ]
+    def _detect_faces(self, image_bytes):
+        """Обнаружение лиц на изображении"""
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None or img.size == 0:
+            return None
+
+        # Преобразование из BGR в RGB (face_recognition использует RGB)
+        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # Обнаружение лиц
+        face_locations = DeepFace.extract_faces(
+            rgb_img, detector_backend="opencv", enforce_detection=False
+        )
+
+        # Рисование рамок вокруг лиц
+        for face in face_locations:
+            x, y, w, h = (
+                face["facial_area"]["x"],
+                face["facial_area"]["y"],
+                face["facial_area"]["w"],
+                face["facial_area"]["h"],
+            )
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        return img
 
     def _count_total_images(self, files):
-        """Подсчёт всех валидных изображений (включая вложенные в ZIP)"""
-        total_images = 0
+        count = 0
         for file in files:
             if file.type in ["application/zip", "application/x-zip-compressed"]:
                 with zipfile.ZipFile(file) as z:
-                    total_images += len(
-                        [
-                            f
-                            for f in z.namelist()
-                            if not f.startswith("__MACOSX/")
-                            and not f.endswith("/")
-                            and f.lower().endswith((".jpg", ".png"))
-                        ]
-                    )
+                    count += len(z.namelist())
             else:
-                total_images += 1
-        return total_images
+                count += 1
+        return count
+
+    def _process_zip(self, file):
+        """Извлечение изображений из ZIP-архива"""
+        images = []
+        with zipfile.ZipFile(file) as z:
+            for name in z.namelist():
+                with z.open(name) as f:
+                    images.append(f.read())
+        return images

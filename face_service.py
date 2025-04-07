@@ -1,6 +1,6 @@
 import numpy as np
-from deepface import DeepFace
 import cv2
+from deepface import DeepFace
 
 
 class FaceService:
