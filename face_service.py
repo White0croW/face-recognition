@@ -1,6 +1,6 @@
 import numpy as np
-import cv2
 from deepface import DeepFace
+import cv2
 
 
 class FaceService:
@@ -13,7 +13,7 @@ class FaceService:
             raise ValueError("Некорректное изображение")
         self.db.save_image(image_bytes)
 
-    def recognize_face(self, image_bytes: bytes, threshold=1.0, model_name="ArcFace"):
+    def recognize_face(self, image_bytes: bytes, threshold=0.6, model_name="ArcFace"):
         """Распознавание лица и поиск совпадений"""
         query_embedding = self._extract_embedding(image_bytes, model_name=model_name)
         if query_embedding is None:
@@ -30,10 +30,14 @@ class FaceService:
         return sorted(matches, key=lambda x: -x["similarity"])
 
     def _validate_image(self, image_bytes: bytes):
-        """Валидация изображения через OpenCV"""
-        nparr = np.frombuffer(image_bytes, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        return img is not None and img.size > 0
+        """Валидация изображения через NumPy"""
+        try:
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            return img is not None and img.size > 0
+        except Exception as e:
+            print(f"Ошибка валидации изображения: {e}")
+            return False
 
     def _preprocess_image(self, img):
         """Предобработка изображения: изменение размера, нормализация и улучшение качества"""
