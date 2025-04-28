@@ -54,3 +54,12 @@ class SQLiteDB:
             }
             for row in cursor.fetchall()
         ]
+
+    def delete_face(self, face_id: int):
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "DELETE FROM faces WHERE id = ?",
+            (face_id,)
+        )
+        self.conn.commit()
+        return cursor.rowcount  # Возвращает количество удаленных строк (1 если удалено, 0 если нет такой записи)
