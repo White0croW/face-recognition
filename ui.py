@@ -136,6 +136,13 @@ class FaceRecognitionUI:
                 st.image(img, caption=f"ID: {img_info['id']}", use_container_width=True)
             except Exception as e:
                 st.warning(f"Ошибка отображения изображения: {e}")
+            if st.button(f"Удалить ID {img_info['id']}", key=f"delete_{img_info['id']}"):
+                deleted_count = self.service.db.delete_face(img_info['id'])
+                if deleted_count > 0:
+                    st.success(f"Лицо с ID {img_info['id']} успешно удалено!")
+                    st.rerun()  # Обновление списка
+                else:
+                    st.error(f"Не удалось удалить лицо с ID {img_info['id']}")
 
     def _count_total_images(self, files):
         total = 0
